@@ -1,33 +1,35 @@
-# Control Flow Testing
+# Control Flow Testing - White Box Testing
 
-Pengujian Alur Kontrol (*Control Flow Testing*) menargetkan pemenuhan kriteria cakupan cabang (*branch coverage*) dan pernyataan (*statement coverage*) pada metode `store(Request $request)` di [BookingController.php](file:///c:/xampp/htdocs/WebsiteBookingLapangan/app/Http/Controllers/BookingController.php).
-
----
-
-## 1. Cakupan Pernyataan (Statement Coverage)
-
-Untuk mencapai 100% *Statement Coverage* (mengeksekusi setiap baris kode di `store`), setidaknya kita membutuhkan 5 kasus uji utama yang memicu alur keluar:
-1.  **Test Case 1 (Lolos Validasi Lapangan Inaktif):** Memicu `return back()->withErrors(['field_id' => ...])` (baris 26).
-2.  **Test Case 2 (Lolos Validasi Menit Ganjil):** Memicu `return back()->withErrors(['start_time' => ...])` (baris 38 - kelipatan jam genap).
-3.  **Test Case 3 (Lolos Validasi Jam Operasional):** Memicu `return back()->withErrors(['start_time' => ...])` (baris 43 - luar jam operasional).
-4.  **Test Case 4 (Lolos Validasi Overlap):** Memicu `return back()->withErrors(['start_time' => ...])` (baris 57 - slot dipesan).
-5.  **Test Case 5 (Alur Sukses):** Mengeksekusi kalkulasi durasi/tarif, `Booking::create(...)` (baris 61-71), dan redirect sukses (baris 73).
+Dokumen ini mendokumentasikan skenario pengujian alur kontrol (*Control Flow Testing*) pada metode `store` di [BookingController.php](file:///c:/xampp/htdocs/WebsiteBookingLapangan/app/Http/Controllers/BookingController.php). Pengujian dirancang untuk memenuhi metrik *Statement Coverage* dan *Branch Coverage* secara penuh.
 
 ---
 
-## 2. Cakupan Cabang (Branch Coverage)
+## 1. Analisis Metrik Cakupan Kontrol
 
-Untuk mencapai 100% *Branch Coverage*, seluruh percabangan logika (baik jalur True maupun False) harus dieksekusi:
+### A. Cakupan Pernyataan (Statement Coverage)
+*   **Target:** Mengeksekusi setiap baris kode di metode `store` minimal sekali.
+*   **Formula Cakupan:**
+    $$\text{Statement Coverage} = \frac{\text{Jumlah pernyataan yang dieksekusi}}{\text{Total seluruh pernyataan di kode}} \times 100\%$$
+*   **Jumlah Test Case Minimal untuk 100%:** 5 Kasus Uji.
 
-*   **Branch 1 (`$field->status !== 'active'`):**
-    *   *True Case:* Lapangan status 'maintenance' (TC-01).
-    *   *False Case:* Lapangan status 'active' (TC-02).
-*   **Branch 2 (`$start->minute !== 0 || $end->minute !== 0`):**
-    *   *True Case (Start/End minute != 0):* Masukan menit ganjil (TC-03).
-    *   *False Case:* Masukan menit `00` (TC-04).
-*   **Branch 3 (`$start->hour < 7 || $end->hour > 22`):**
-    *   *True Case:* Jam di luar operasional (TC-05).
-    *   *False Case:* Jam di dalam operasional (TC-06).
-*   **Branch 4 (`$overlap`):**
-    *   *True Case:* Terjadi bentrok jadwal (TC-07).
-    *   *False Case:* Jadwal kosong (TC-08).
+### B. Cakupan Cabang (Branch Coverage)
+*   **Target:** Mengeksekusi seluruh alternatif hasil keputusan (cabang `true` dan cabang `false` pada setiap kondisi `if` dan logical operators `||`).
+*   **Formula Cakupan:**
+    $$\text{Branch Coverage} = \frac{\text{Jumlah cabang keputusan yang dieksekusi}}{\text{Total seluruh cabang keputusan di kode}} \times 100\%$$
+*   **Jumlah Test Case Minimal untuk 100%:** 7 Kasus Uji (Sesuai dengan Basis Path).
+
+---
+
+## 2. Peta Kasus Uji Cakupan Kontrol (Control Flow Test Suite)
+
+Tabel berikut menunjukkan parameter input dan cabang mana saja yang dieksekusi oleh masing-masing test case:
+
+| ID Uji | Input Parameter | Status DB Mock | Cabang Logika yang Dievaluasi | Baris Kode yang Dieksekusi | Hasil Cakupan (Statement / Branch) |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **TC-CF-01** | `field_id = 2`<br>`booking_date = today`<br>`start_time = 08:00`<br>`end_time = 10:00` | Lapangan 2 status = `'maintenance'` | `if ($field->status !== 'active')` ➔ **True** | Baris 14-27 (Validasi dasar, query, return error inaktif). | 55% Statement / 14% Branch |
+| **TC-CF-02** | `field_id = 1`<br>`booking_date = today`<br>`start_time = 08:30`<br>`end_time = 10:00` | Lapangan 1 status = `'active'` | `if ($field->status !== 'active')` ➔ **False**<br>`if ($start->minute !== 0)` ➔ **True** | Baris 14-25, 27-38 (Lolos status, parse waktu, return error menit). | 65% Statement / 28% Branch |
+| **TC-CF-03** | `field_id = 1`<br>`booking_date = today`<br>`start_time = 08:00`<br>`end_time = 10:15` | Lapangan 1 status = `'active'` | `if ($start->minute !== 0)` ➔ **False**<br>`if ($end->minute !== 0)` ➔ **True** | Baris 14-25, 27-38 (Lolos status, lolos start min, return error end min). | 65% Statement / 42% Branch |
+| **TC-CF-04** | `field_id = 1`<br>`booking_date = today`<br>`start_time = 06:00`<br>`end_time = 08:00` | Lapangan 1 status = `'active'` | `if ($start->hour < 7)` ➔ **True** | Baris 14-25, 27-37, 40-44 (Lolos menit, return error luar operasional). | 75% Statement / 57% Branch |
+| **TC-CF-05** | `field_id = 1`<br>`booking_date = today`<br>`start_time = 21:00`<br>`end_time = 23:00` | Lapangan 1 status = `'active'` | `if ($start->hour < 7)` ➔ **False**<br>`if ($end->hour > 22)` ➔ **True** | Baris 14-25, 27-37, 40-44 (Lolos start hour, return error luar operasional). | 75% Statement / 71% Branch |
+| **TC-CF-06** | `field_id = 1`<br>`booking_date = today`<br>`start_time = 08:00`<br>`end_time = 10:00` | Lapangan 1 status = `'active'`. Ada booking bentrok di database. | `if ($overlap)` ➔ **True** | Baris 14-25, 27-37, 40-58 (Lolos operasional, query overlap, return error bentrok). | 85% Statement / 85% Branch |
+| **TC-CF-07** | `field_id = 1`<br>`booking_date = today`<br>`start_time = 08:00`<br>`end_time = 10:00` | Lapangan 1 status = `'active'`. Slot waktu kosong di DB. | `if ($overlap)` ➔ **False** | Baris 14-25, 27-37, 40-55, 58-73 (Lolos semua validasi, buat booking, redirect sukses). | **100% Statement / 100% Branch** |

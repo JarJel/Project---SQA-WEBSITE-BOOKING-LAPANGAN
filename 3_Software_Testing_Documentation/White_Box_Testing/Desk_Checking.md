@@ -1,40 +1,69 @@
-# Desk Checking (Dry Run)
+# Desk Checking (Dry Run) - White Box Testing
 
-Dokumen ini mendokumentasikan pelacakan manual (*Desk Checking*) logika kode metode `store` di [BookingController.php](file:///c:/xampp/htdocs/WebsiteBookingLapangan/app/Http/Controllers/BookingController.php) menggunakan nilai masukan tiruan.
+Dokumen ini mendokumentasikan hasil simulasi manual penelusuran logika program (*Desk Checking / Trace Table*) pada metode `store` di [BookingController.php](file:///c:/xampp/htdocs/WebsiteBookingLapangan/app/Http/Controllers/BookingController.php) untuk empat skenario kasus uji yang berbeda.
 
 ---
 
-## 1. Kasus Uji Tiruan A: Input Menit Tidak Bulat
+## 1. Kasus Uji A: Input Menit Tidak Bulat (:00)
 *   **Input Request:** `field_id = 1`, `booking_date = 2026-06-25`, `start_time = 08:30`, `end_time = 10:00`.
-*   **Mock Database:** Lapangan ID `1` memiliki status `'active'`.
-*   **Tabel Pelacakan (Trace Table):**
+*   **Database Mock:** Lapangan ID `1` status `'active'`.
+*   **Trace Table:**
 
-| Langkah | Baris Kode | Evaluasi Kondisi / Ekspresi | Nilai Variabel | Keterangan |
+| Langkah | Baris Kode | Evaluasi Ekspresi / Kondisi | Nilai Variabel | Catatan |
 | :---: | :--- | :--- | :--- | :--- |
-| 1 | Baris 16-21 | `$request->validate(...)` | Lolos validasi dasar | Semua input berformat benar. |
-| 2 | Baris 23 | `$field = Field::findOrFail(1)` | `$field->status = 'active'` | Lapangan ditemukan di DB. |
-| 3 | Baris 25 | `if ($field->status !== 'active')` | `'active' !== 'active'` (False) | Tidak masuk ke blok IF. |
-| 4 | Baris 34-35 | `$start = Carbon::parse('08:30')`<br>`$end = Carbon::parse('10:00')` | `$start->minute = 30`<br>`$end->minute = 0` | Waktu berhasil diparsing. |
-| 5 | Baris 37 | `if ($start->minute !== 0 \|\| ...)` | `30 !== 0` (True) | Kondisi IF bernilai True. |
-| 6 | Baris 38 | `return back()->withErrors(...)` | Mengembalikan error menit | Aliran dihentikan di sini (Exit 2). |
+| 1 | Baris 14 | `$request->validate(...)` | Lolos | Format data valid. |
+| 2 | Baris 23 | `$field = Field::findOrFail(1)` | `$field->status = 'active'` | Lapangan aktif ditemukan. |
+| 3 | Baris 25 | `if ($field->status !== 'active')` | `'active' !== 'active'` (False) | Dilewati (Lolos). |
+| 4 | Baris 34 | `$start = Carbon::parse('08:30')` | `$start->minute = 30` | Parsed. |
+| 5 | Baris 35 | `$end = Carbon::parse('10:00')` | `$end->minute = 0` | Parsed. |
+| 6 | Baris 37 | `if ($start->minute !== 0 \|\| ...)` | `30 !== 0` (True) | Kondisi IF = **True**. |
+| 7 | Baris 38 | `return back()->withErrors(...)` | Mengembalikan error menit | Alur keluar di Node 7 (Exit 2). |
 
 ---
 
-## 2. Kasus Uji Tiruan B: Pemesanan Berhasil (Sukses)
+## 2. Kasus Uji B: Pemesanan Berhasil (Sukses)
 *   **Input Request:** `field_id = 1`, `booking_date = 2026-06-25`, `start_time = 08:00`, `end_time = 10:00`.
-*   **Mock Database:** Lapangan ID `1` memiliki status `'active'`, tidak ada data overlap di tabel `bookings`.
-*   **Tabel Pelacakan (Trace Table):**
+*   **Database Mock:** Lapangan ID `1` status `'active'`, tidak ada data overlap di basis data.
+*   **Trace Table:**
 
-| Langkah | Baris Kode | Evaluasi Kondisi / Ekspresi | Nilai Variabel | Keterangan |
+| Langkah | Baris Kode | Evaluasi Ekspresi / Kondisi | Nilai Variabel | Catatan |
 | :---: | :--- | :--- | :--- | :--- |
-| 1 | Baris 23 | `$field = Field::findOrFail(1)` | `$field->price_per_hour = 150000` | Lapangan ditemukan. |
-| 2 | Baris 25 | `if ($field->status !== 'active')` | False | Status aktif. |
-| 3 | Baris 34-35 | `$start = Carbon::parse(...)` | `$start->hour = 8, min = 0`<br>`$end->hour = 10, min = 0` | Berhasil diparsing. |
-| 4 | Baris 37 | `if ($start->minute !== 0 \|\| ...)` | `0 !== 0 \|\| 0 !== 0` (False) | Menit valid (`00`). |
-| 5 | Baris 42 | `if ($start->hour < 7 \|\| ...)` | `8 < 7 \|\| 10 > 22` (False) | Jam di dalam operasional. |
-| 6 | Baris 47-54 | `$overlap = Booking::where(...)` | `$overlap = false` | Tidak ada bentrok di DB. |
-| 7 | Baris 56 | `if ($overlap)` | False | Lolos validasi overlap. |
-| 8 | Baris 60 | `$duration = $end->diffInHours($start)`| `$duration = 2` | Selisih 2 jam. |
-| 9 | Baris 61 | `$totalPrice = 2 * 150000` | `$totalPrice = 300000` | Total harga dihitung. |
-| 10 | Baris 63-71 | `Booking::create(...)` | Record baru tersimpan | Status pending, total_price 300000. |
-| 11 | Baris 73 | `return redirect()->route(...)` | Redirect sukses | Aliran keluar sukses (Exit 7). |
+| 1 | Baris 23 | `$field = Field::findOrFail(1)` | `$field->price_per_hour = 150000`| Lapangan aktif. |
+| 2 | Baris 34-35 | `$start = Carbon::parse(...)` | `$start->hour=8`, `$end->hour=10`| Menit `00` untuk keduanya. |
+| 3 | Baris 37 | `if ($start->minute !== 0 \|\| ...)` | `0 !== 0 \|\| 0 !== 0` (False) | Lolos validasi menit. |
+| 4 | Baris 42 | `if ($start->hour < 7 \|\| ...)` | `8 < 7 \|\| 10 > 22` (False) | Lolos jam operasional. |
+| 5 | Baris 47 | `$overlap = Booking::where(...)...` | `$overlap = false` | Tidak ada bentrok. |
+| 6 | Baris 56 | `if ($overlap)` | False | Lolos validasi overlap. |
+| 7 | Baris 60 | `$duration = $end->diffInHours($start)`| `$duration = 2` | Selisih 2 jam. |
+| 8 | Baris 61 | `$totalPrice = 2 * 150000` | `$totalPrice = 300000` | Hitung total harga. |
+| 9 | Baris 63 | `Booking::create(...)` | Record tersimpan | Transaksi berhasil masuk DB. |
+| 10 | Baris 73 | `return redirect()->route(...)` | Redirect sukses | Sukses keluar di Node 14. |
+
+---
+
+## 3. Kasus Uji C: Terjadi Bentrok Jadwal (Overlap Conflict)
+*   **Input Request:** `field_id = 1`, `booking_date = 2026-06-25`, `start_time = 09:00`, `end_time = 11:00`.
+*   **Database Mock:** Lapangan ID `1` status `'active'`. Terdapat booking terdaftar jam `10:00 - 12:00` status `approved`.
+*   **Trace Table:**
+
+| Langkah | Baris Kode | Evaluasi Ekspresi / Kondisi | Nilai Variabel | Catatan |
+| :---: | :--- | :--- | :--- | :--- |
+| 1 | Baris 23 | `$field = Field::findOrFail(1)` | `$field->status = 'active'` | Lapangan ditemukan. |
+| 2 | Baris 37-42 | Pengecekan menit & jam operasional | Lolos (False) | Masukan jam valid. |
+| 3 | Baris 47 | `$overlap = Booking::where(...)` | Kueri SQL mengembalikan `true` | Terjadi irisan waktu (`09:00 < 12:00` AND `11:00 > 10:00`). |
+| 4 | Baris 56 | `if ($overlap)` | True | Kondisi overlap terpenuhi. |
+| 5 | Baris 57 | `return back()->withErrors(...)` | Mengembalikan error bentrok | Aliran dihentikan di Node 12 (Exit 4). |
+
+---
+
+## 4. Kasus Uji D: Pelanggaran Batas Jam Operasional Atas
+*   **Input Request:** `field_id = 1`, `booking_date = 2026-06-25`, `start_time = 21:00`, `end_time = 23:00`.
+*   **Database Mock:** Lapangan ID `1` status `'active'`.
+*   **Trace Table:**
+
+| Langkah | Baris Kode | Evaluasi Ekspresi / Kondisi | Nilai Variabel | Catatan |
+| :---: | :--- | :--- | :--- | :--- |
+| 1 | Baris 34-35 | `$start = Carbon::parse(...)` | `$start->hour=21`, `$end->hour=23`| Menit genap `:00`. |
+| 2 | Baris 37 | `if ($start->minute !== 0 \|\| ...)` | False | Lolos validasi menit. |
+| 3 | Baris 42 | `if ($start->hour < 7 \|\| $end->hour > 22)`| `21 < 7` (False) `\|\|` `23 > 22` (True) | Hasil ekspresi adalah **True**. |
+| 4 | Baris 43 | `return back()->withErrors(...)` | Mengembalikan error operasional| Aliran dihentikan di Node 9 (Exit 3). |
