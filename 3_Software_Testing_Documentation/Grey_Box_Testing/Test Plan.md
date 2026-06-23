@@ -1,30 +1,39 @@
 # Grey Box Test Plan (Rencana Pengujian Grey Box)
 
-Dokumen ini mendefinisikan rencana pengujian (*Test Plan*) khusus untuk aktivitas pengujian tingkat Grey Box pada sistem booking lapangan.
+Dokumen ini mendefinisikan rencana pengujian (*Test Plan*) tingkat Grey Box untuk memvalidasi integrasi data, REST API, dan basis data pada sistem [Website-BookingLapangan](https://github.com/JarJel/Website-BookingLapangan).
 
 ---
 
 ## 1. Ruang Lingkup Pengujian Grey Box
 
-Pengujian difokuskan pada integrasi antara antarmuka pengguna (Frontend), logika aplikasi (Backend API), dan tempat penyimpanan data (Database Server).
+Pengujian difokuskan pada area abu-abu di mana data ditransfer dari antarmuka pengguna (Frontend) melalui logika API (Backend) dan disimpan secara persisten di database (DBMS MySQL).
 
-### Cakupan Pengujian:
-1.  **Antarmuka API (API Endpoints):** Keakuratan response status code, response body schema, header, dan handling error API.
-2.  **Validasi Database:** Konsistensi penyimpanan data, integritas relasi tabel (Foreign Keys), trigger database, dan validasi tipe data kolom.
-3.  **Antrean Tugas Backend (Queues / Jobs):** Pengujian job pengiriman email secara asinkronus (background worker).
-4.  **Penanganan Keamanan Sesi (Session & Token Management):** Validasi JWT/Session payload untuk berbagai role pengguna.
+### A. Komponen yang Diuji:
+1.  **REST API Endpoints:** Menguji input validasi HTTP status, JSON schema response, header, dan handling exception Laravel.
+2.  **Integritas Basis Data:** Memeriksa apakah data transaksi sewa ditulis secara tepat di MySQL, memicu pembaruan foreign key, dan memvalidasi pencegahan *double-booking* di tingkat query database.
+3.  **Unggah Berkas Bukti Transfer:** Memeriksa penulisan path berkas pada kolom database (`bookings.proof_of_payment`) dan penyimpanan fisiknya di direktori server `public/uploads/proofs/`.
+4.  **Autentikasi & Otorisasi Sesi:** Memverifikasi hak akses routes `/admin/*` menggunakan Role Middleware.
 
 ---
 
 ## 2. Kebutuhan Sumber Daya Uji
 
-*   **Akses Database:** Akses Read/Write ke database staging menggunakan kredensial pengujian khusus.
-*   **Perkakas Pengujian (Testing Tools):**
-    *   **Postman:** Uji endpoint API secara otomatis (*API collection runner*).
-    *   **DBeaver / phpMyAdmin:** Inspeksi langsung data di tabel-tabel database.
-    *   **Laravel Telescope / Laravel Log Viewer:** Memantau query SQL yang berjalan, log error, dan status antrean job email.
-*   **Kriteria Kelulusan Uji:**
-    1.  Semua endpoint API utama (Auth, Booking, Lapangan) mengembalikan response sesuai kontrak API.
-    2.  Seluruh query SQL yang dihasilkan oleh aplikasi menggunakan parameter binding (tidak rentan SQL Injection).
-    3.  Data yang terisi pada database 100% presisi sesuai input pengguna.
-    4.  Job email pengingat booking diproses sukses oleh queue worker tanpa kegagalan.
+### A. Kredensial dan Akses:
+*   Akses kueri langsung ke database staging/lokal (`db_booking_lapangan`) menggunakan DBMS.
+*   Akses ke file log staging di `C:\xampp\htdocs\WebsiteBookingLapangan\storage\logs\laravel.log`.
+
+### B. Perkakas Pengujian (Testing Tools):
+*   **Postman:** Menjalankan kumpulan koleksi API otomatis (*API Automation testing*).
+*   **DBeaver / phpMyAdmin:** Melakukan pengecekan data langsung di tabel relasional.
+*   **Laravel Log Viewer:** Memantau log pengecualian (*exceptions log*).
+
+---
+
+## 3. Kriteria Penangguhan & Kelulusan Uji
+
+*   **Kriteria Penangguhan (Suspension):** Pengujian dihentikan jika kueri MySQL mengalami kebocoran koneksi (*Too many connections error*) atau database migration gagal dipasang pada server staging.
+*   **Kriteria Kelulusan (Exit Criteria):**
+    1.  100% kasus uji API sukses memanipulasi database dengan presisi.
+    2.  Kueri SQL pencegahan *double-booking* 100% berhasil memblokir bentrok jadwal di tingkat database.
+    3.  Seluruh response API gagal validasi mengembalikan kode status HTTP `422 Unprocessable Entity` dengan skema pesan error JSON terstandarisasi.
+    4.  Sistem logging mencatat error internal server dengan format stamp waktu yang benar tanpa memperlihatkan query error ke pengguna luar.
