@@ -1,35 +1,95 @@
-# Cause-Effect Relationship Testing
+# Cause-Effect Relationship Testing - Fitur Pemesanan Lapangan
 
-Metode Cause-Effect Graphing/Relationship membantu mendokumentasikan kombinasi input (Causes) dan dampaknya terhadap output/perilaku sistem (Effects) dalam bentuk representasi logika terstruktur.
-
----
-
-## 1. Daftar Sebab (Causes) & Akibat (Effects)
-
-### Sebab (Causes):
-*   **C1:** Email & Kata sandi yang dimasukkan terdaftar di database.
-*   **C2:** Sesi login pengguna masih aktif (valid session).
-*   **C3:** Lapangan futsal yang dipilih berstatus aktif (bukan maintenance).
-*   **C4:** Slot waktu yang dipesan kosong (belum dipesan orang lain).
-*   **C5:** Pengguna mengunggah bukti transfer nominal yang tepat sebelum 1 jam.
-
-### Akibat (Effects):
-*   **E1:** Login berhasil dan masuk ke dashboard.
-*   **E2:** Login ditolak, pesan kesalahan ditampilkan.
-*   **E3:** Pemesanan sementara berhasil dibuat (Status: Pending).
-*   **E4:** Pemesanan diblokir oleh sistem (Error bentrok jadwal).
-*   **E5:** Status booking berubah menjadi "Approved" oleh admin.
-*   **E6:** Status booking dibatalkan secara otomatis (Expired).
+Dokumen ini mendokumentasikan analisis hubungan sebab-akibat (*Cause-Effect Graphing/Relationship*) untuk memvalidasi masukan logika bisnis pada metode `store` di [BookingController.php](file:///c:/xampp/htdocs/WebsiteBookingLapangan/app/Http/Controllers/BookingController.php).
 
 ---
 
-## 2. Matriks Hubungan Cause-Effect
+## 1. Definisi Sebab (Causes) & Akibat (Effects)
 
-| Aturan (Rule) | Kondisi Sebab (Causes) | Hasil Akibat (Effects) | Deskripsi Kasus Nyata |
-| :---: | :--- | :--- | :--- |
-| **Rule 1** | C1 = TRUE | E1 | Login sukses menggunakan akun terdaftar. |
-| **Rule 2** | C1 = FALSE | E2 | Login gagal karena email/password salah. |
-| **Rule 3** | C2 = TRUE, C3 = TRUE, C4 = TRUE | E3 | Melakukan booking lapangan yang tersedia saat sedang login. |
-| **Rule 4** | C2 = TRUE, C3 = TRUE, C4 = FALSE | E4 | Gagal booking karena jadwal bertabrakan. |
-| **Rule 5** | C3 = TRUE, C5 = TRUE | E5 | Admin menyetujui transaksi setelah bukti transfer diverifikasi tepat waktu. |
-| **Rule 6** | C5 = FALSE | E6 | Transaksi otomatis kedaluwarsa setelah 1 jam tanpa pembayaran. |
+### Sebab (Causes - Input Conditions):
+*   **C1:** `booking_date` $\ge$ hari ini.
+*   **C2:** Menit `start_time` & `end_time` bernilai `:00` (kelipatan jam genap).
+*   **C3:** Jam sewa di dalam operasional (`07:00` s.d `22:00`).
+*   **C4:** Lapangan berstatus aktif (`status == 'active'`).
+*   **C5:** Slot waktu kosong (tidak bentrok / overlap = false).
+*   **C6:** Pengguna mengunggah bukti transfer nominal valid dalam batas waktu 1 jam.
+
+### Akibat (Effects - System Outputs):
+*   **E1:** Menampilkan pesan kesalahan validasi input (Tanggal/Menit/Jam).
+*   **E2:** Menampilkan pesan kesalahan "Lapangan sedang tidak aktif".
+*   **E3:** Menampilkan pesan kesalahan "Slot waktu sudah dipesan".
+*   **E4:** Pemesanan berhasil dibuat dengan status `pending` (total harga terhitung).
+*   **E5:** Status pemesanan diubah menjadi `approved` (jadwal resmi dikunci).
+*   **E6:** Status pemesanan otomatis menjadi `expired` (slot waktu dibebaskan).
+
+---
+
+## 2. Aturan Logika (Logical Relationships)
+
+Hubungan sebab-akibat digambarkan dengan notasi logika boolean:
+
+*   **Ekspresi E1 (Error Validasi Input):**
+    $$E1 = \neg C1 \lor \neg C2 \lor \neg C3$$
+    *(Jika tanggal lampau, ATAU menit ganjil, ATAU di luar jam operasional, maka tampilkan error validasi)*
+*   **Ekspresi E2 (Error Lapangan Inaktif):**
+    $$E2 = C1 \land C2 \land C3 \land \neg C4$$
+    *(Jika input valid tetapi lapangan dalam perawatan, tampilkan error status lapangan)*
+*   **Ekspresi E3 (Error Overlap):**
+    $$E3 = C1 \land C2 \land C3 \land C4 \land \neg C5$$
+    *(Jika input & lapangan valid tetapi slot waktu bentrok, tampilkan error jadwal)*
+*   **Ekspresi E4 (Pemesanan Pending Sukses):**
+    $$E4 = C1 \land C2 \land C3 \land C4 \land C5$$
+    *(Jika seluruh input, status lapangan, dan ketersediaan slot terpenuhi, buat booking pending)*
+*   **Ekspresi E5 (Pemesanan Approved):**
+    $$E5 = E4 \land C6$$
+    *(Jika booking pending berhasil dibuat DAN bukti pembayaran valid terunggah)*
+*   **Ekspresi E6 (Pemesanan Expired):**
+    $$E6 = E4 \land \neg C6 \text{ (setelah 1 jam)}$$
+    *(Jika booking pending berhasil dibuat tetapi tidak ada pembayaran dalam 1 jam)*
+
+---
+
+## 3. Diagram Alir Logika Hubungan (Mermaid)
+
+```mermaid
+graph TD
+    %% Input Node Causes
+    C1[C1: Tanggal Valid]
+    C2[C2: Menit Bulat]
+    C3[C3: Jam Operasional]
+    C4[C4: Lapangan Aktif]
+    C5[C5: Slot Kosong]
+    C6[C6: Upload Bukti Valid]
+
+    %% Gates
+    OR1{OR Gate}
+    AND1{AND Gate}
+    AND2{AND Gate}
+    AND3{AND Gate}
+    AND4{AND Gate}
+    AND5{AND Gate}
+
+    %% Logic Connections
+    C1 -->|NOT| OR1
+    C2 -->|NOT| OR1
+    C3 -->|NOT| OR1
+    OR1 --> E1[E1: Error Validasi Input]
+
+    C1 & C2 & C3 --> AND1
+    C4 -->|NOT| AND1
+    AND1 --> E2[E2: Error Lapangan Inaktif]
+
+    C1 & C2 & C3 & C4 --> AND2
+    C5 -->|NOT| AND2
+    AND2 --> E3[E3: Error Overlap]
+
+    C1 & C2 & C3 & C4 & C5 --> AND3
+    AND3 --> E4[E4: Booking Pending Sukses]
+
+    AND3 & C6 --> AND4
+    AND4 --> E5[E5: Booking Approved]
+
+    AND3 -->|Batas Waktu Habis| AND5
+    C6 -->|NOT| AND5
+    AND5 --> E6[E6: Booking Expired]
+```

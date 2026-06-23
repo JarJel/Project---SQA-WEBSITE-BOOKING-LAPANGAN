@@ -1,29 +1,35 @@
-# Sample Testing (Pengujian Sampel)
+# Sample Testing (Pengujian Sampel & Uji Acak)
 
-Dokumen ini menjelaskan strategi pemilihan sampel (*Sample Testing*) yang representatif dari sekian banyak kemungkinan populasi data input untuk pengujian fungsionalitas sistem.
-
----
-
-## 1. Pemilihan Sampel Pengujian
-
-Karena keterbatasan waktu dan sumber daya, pengujian fungsionalitas pencarian lapangan tidak perlu dilakukan pada ribuan variasi kata kunci. Kita mengambil beberapa sampel representatif berikut:
-
-### Sampel Karakter Input Pencarian Lapangan:
-1.  **Sampel Valid Baku:** Kata kunci nama lapangan yang eksis (Contoh: `"Futsal"`, `"Basket"`).
-2.  **Sampel Valid Sebagian (Partial):** Karakter pencarian tidak lengkap (Contoh: `"Fut"`, `"Bas"`).
-3.  **Sampel Karakter Khusus (Special Characters):** Menguji ketahanan input (Contoh: `"!@#$"`, `"Futsal_A"`).
-4.  **Sampel Huruf Besar/Kecil (Case Sensitivity):** Memastikan pencarian bersifat case-insensitive (Contoh: `"fUtSaL"`, `"BASKET"`).
-5.  **Sampel Kosong / Whitespace:** Pencarian tanpa mengetik apa pun atau hanya spasi (Contoh: `"   "`).
+Dokumen ini mendokumentasikan skenario pemilihan sampel (*Sample Testing*) dan pengujian acak (*Ad-hoc/Random Testing*) untuk fitur **Pemesanan Lapangan (`store` method)** pada aplikasi [Website-BookingLapangan](https://github.com/JarJel/Website-BookingLapangan).
 
 ---
 
-## 2. Tabel Kasus Uji Sampel Pencarian
+## 1. Pendekatan Pengujian Sampel
 
-| ID Uji | Jenis Sampel | Input Kata Kunci | Ekspektasi Hasil | Status Uji |
-| :--- | :--- | :--- | :--- | :---: |
-| **TC-SMP-001** | Valid Baku | `"Futsal A"` | Menampilkan data Lapangan Futsal A | Pass |
-| **TC-SMP-002** | Valid Partial | `"Fut"` | Menampilkan daftar lapangan futsal yang cocok | Pass |
-| **TC-SMP-003** | Case-Insensitive | `"fUtSaL"` | Menampilkan lapangan futsal dengan tepat | Pass |
-| **TC-SMP-004** | Tidak Eksis | `"Berenang"` | Menampilkan tulisan "Hasil tidak ditemukan" | Pass |
-| **TC-SMP-005** | Karakter Khusus | `"@#$%"` | Menampilkan tulisan "Hasil tidak ditemukan" | Pass |
-| **TC-SMP-006** | Whitespace | `"   "` | Menampilkan seluruh daftar lapangan semula | Pass |
+Karena banyaknya kemungkinan input variatif pada sistem, penguji memilih sampel representatif untuk mencakup seluruh skenario operasional secara hemat dan terukur. Pemilihan sampel dibagi menjadi 4 kelompok utama:
+
+1.  **Sampel Data Pengguna (Users):**
+    *   Pengguna dengan peran `'admin'` (untuk menguji bypass hak akses dan halaman admin).
+    *   Pengguna dengan peran `'user'` (untuk menguji alur sewa standar).
+2.  **Sampel Status Lapangan (Fields):**
+    *   Lapangan Futsal A (Status: `'active'`, harga per jam: `150,000`).
+    *   Lapangan Badminton 1 (Status: `'maintenance'`, harga per jam: `50,000`).
+3.  **Sampel Waktu & Jam Sewa (Timings):**
+    *   Hari kerja (Weekday) vs Hari libur (Weekend).
+    *   Jam operasional normal pagi (`08:00 - 10:00`) vs sore/malam (`19:00 - 21:00`).
+4.  **Sampel Status Pembayaran (Payments):**
+    *   Pembayaran tepat nominal (valid).
+    *   Pembayaran kurang nominal / bukti buram (invalid).
+
+---
+
+## 2. Tabel Matriks Kasus Uji Sampel (Sample Test Matrix)
+
+| ID Uji | Peran Pengguna | ID Lapangan (Status) | Pilihan Tanggal & Jam | Nilai Input Bukti Transfer | Hasil yang Diharapkan | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :---: |
+| **TC-SMP-001** | `user` (Budi) | ID: 1 (`active`) | Besok, `08:00 - 10:00` | Gambar JPG valid (1.2 MB) | Pemesanan sukses status `pending` ➔ diunggah bukti ➔ disetujui admin ➔ status `approved`. | Pass |
+| **TC-SMP-002** | `user` (Budi) | ID: 1 (`active`) | Besok, `09:00 - 11:00` | - | **Ditolak (Error Overlap)**<br>Slot jam 09:00 - 10:00 sudah dipesan di TC-SMP-001. | Pass |
+| **TC-SMP-003** | `user` (Budi) | ID: 2 (`maintenance`) | Besok, `10:00 - 12:00` | - | **Ditolak (Error Lapangan)**<br>Muncul pesan "Lapangan sedang tidak aktif". | Pass |
+| **TC-SMP-004** | `admin` (Rudi) | ID: 1 (`active`) | Besok, `07:00 - 08:00` | - | **Diterima**<br>Admin dapat melakukan simulasi sewa secara langsung. | Pass |
+| **TC-SMP-005** | `user` (Budi) | ID: 1 (`active`) | Hari ini, `21:00 - 23:00` | - | **Ditolak (Error Jam Operasional)**<br>Jam selesai sewa melebihi batas 22:00. | Pass |
+| **TC-SMP-006** | `user` (Budi) | ID: 1 (`active`) | Hari ini, `15:00 - 16:00` | Gambar PDF (invalid) | Booking pending terbuat ➔ upload bukti gagal karena format bukan gambar. | Pass |
