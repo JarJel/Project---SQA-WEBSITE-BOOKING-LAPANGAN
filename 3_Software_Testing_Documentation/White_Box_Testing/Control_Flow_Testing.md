@@ -1,41 +1,33 @@
 # Control Flow Testing
 
-Pengujian Alur Kontrol (*Control Flow Testing*) berfokus pada eksekusi terstruktur dari pernyataan kendali dalam program. Tujuannya adalah mengukur persentase cakupan logika program yang berhasil dijalankan oleh test case.
+Pengujian Alur Kontrol (*Control Flow Testing*) menargetkan pemenuhan kriteria cakupan cabang (*branch coverage*) dan pernyataan (*statement coverage*) pada metode `store(Request $request)` di [BookingController.php](file:///c:/xampp/htdocs/WebsiteBookingLapangan/app/Http/Controllers/BookingController.php).
 
 ---
 
-## 1. Tingkatan Cakupan Kontrol (Coverage Levels)
+## 1. Cakupan Pernyataan (Statement Coverage)
 
-1.  **Statement Coverage:** Memastikan seluruh baris instruksi/pernyataan minimal dieksekusi sekali.
-2.  **Branch / Decision Coverage:** Memastikan seluruh pilihan percabangan (`if` bernilai `true` dan `if` bernilai `false`) dieksekusi.
-3.  **Path Coverage:** Memastikan seluruh kombinasi jalur yang dilewati dieksekusi secara penuh.
-
----
-
-## 2. Kode Contoh: Fungsi Autentikasi Admin (`verifyAdminAccess`)
-
-```php
-public function verifyAdminAccess($user) {
-    if ($user->role == 'admin') {           // Branch 1
-        if ($user->status == 'active') {    // Branch 2
-            return "Akses Diberikan";
-        }
-    }
-    return "Akses Ditolak";
-}
-```
+Untuk mencapai 100% *Statement Coverage* (mengeksekusi setiap baris kode di `store`), setidaknya kita membutuhkan 5 kasus uji utama yang memicu alur keluar:
+1.  **Test Case 1 (Lolos Validasi Lapangan Inaktif):** Memicu `return back()->withErrors(['field_id' => ...])` (baris 26).
+2.  **Test Case 2 (Lolos Validasi Menit Ganjil):** Memicu `return back()->withErrors(['start_time' => ...])` (baris 38 - kelipatan jam genap).
+3.  **Test Case 3 (Lolos Validasi Jam Operasional):** Memicu `return back()->withErrors(['start_time' => ...])` (baris 43 - luar jam operasional).
+4.  **Test Case 4 (Lolos Validasi Overlap):** Memicu `return back()->withErrors(['start_time' => ...])` (baris 57 - slot dipesan).
+5.  **Test Case 5 (Alur Sukses):** Mengeksekusi kalkulasi durasi/tarif, `Booking::create(...)` (baris 61-71), dan redirect sukses (baris 73).
 
 ---
 
-## 3. Matriks Skenario Uji Cakupan Alur
+## 2. Cakupan Cabang (Branch Coverage)
 
-### Skenario 1: Untuk Mencapai 100% Statement Coverage
-Kita hanya membutuhkan 2 kasus uji untuk memastikan semua baris kode pernah dilewati:
-*   **Test Case 1:** `$user->role = 'admin'`, `$user->status = 'active'`. (Mengeksekusi baris `return "Akses Diberikan"`)
-*   **Test Case 2:** `$user->role = 'user'`. (Mengeksekusi baris `return "Akses Ditolak"`)
+Untuk mencapai 100% *Branch Coverage*, seluruh percabangan logika (baik jalur True maupun False) harus dieksekusi:
 
-### Skenario 2: Untuk Mencapai 100% Branch / Decision Coverage
-Kita harus menguji seluruh nilai alternatif pada setiap percabangan keputusan:
-*   **Test Case 1:** `$user->role = 'admin'`, `$user->status = 'active'` (Branch 1 = True, Branch 2 = True)
-*   **Test Case 2:** `$user->role = 'admin'`, `$user->status = 'inactive'` (Branch 1 = True, Branch 2 = False)
-*   **Test Case 3:** `$user->role = 'user'` (Branch 1 = False)
+*   **Branch 1 (`$field->status !== 'active'`):**
+    *   *True Case:* Lapangan status 'maintenance' (TC-01).
+    *   *False Case:* Lapangan status 'active' (TC-02).
+*   **Branch 2 (`$start->minute !== 0 || $end->minute !== 0`):**
+    *   *True Case (Start/End minute != 0):* Masukan menit ganjil (TC-03).
+    *   *False Case:* Masukan menit `00` (TC-04).
+*   **Branch 3 (`$start->hour < 7 || $end->hour > 22`):**
+    *   *True Case:* Jam di luar operasional (TC-05).
+    *   *False Case:* Jam di dalam operasional (TC-06).
+*   **Branch 4 (`$overlap`):**
+    *   *True Case:* Terjadi bentrok jadwal (TC-07).
+    *   *False Case:* Jadwal kosong (TC-08).

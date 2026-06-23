@@ -1,41 +1,28 @@
 # Data Flow Testing
 
-Pengujian Alur Data (*Data Flow Testing*) berfokus pada siklus hidup data atau variabel di dalam kode program. Siklus ini dikenal dengan istilah **Definition-Use (DU) Chain**, yang meliputi pembuatan variabel (Define), penggunaan variabel (Use), dan penghancuran/penghapusan variabel (Kill).
+Pengujian Alur Data (*Data Flow Testing*) mengidentifikasi hubungan deklarasi (*Definition - d*) dan penggunaan (*Use - u*) variabel penting pada metode `store(Request $request)` di [BookingController.php](file:///c:/xampp/htdocs/WebsiteBookingLapangan/app/Http/Controllers/BookingController.php).
 
 ---
 
-## 1. Siklus Hidup Variabel (Def-Use-Kill)
+## 1. Tabel Def-Use (DU) Chain Variabel Utama
 
-*   **Definition (d):** Nilai diberikan ke suatu variabel (inisialisasi).
-*   **Use (u):** Nilai variabel dibaca atau digunakan dalam perhitungan atau keputusan:
-    *   *Computation Use (c-use):* Digunakan dalam operasi hitung/penugasan nilai lain.
-    *   *Predicate Use (p-use):* Digunakan dalam logika ekspresi kondisional (misal: pernyataan `if`).
-*   **Kill (k):** Ruang memori variabel dilepaskan atau dialokasikan ulang.
-
----
-
-## 2. Kode Contoh: Fungsi Diskon Tambahan
-
-```php
-function getFinalPrice($price, $hasDiscount) {
-    $total = $price;                       // Line 1: Define total (d)
-    
-    if ($hasDiscount) {                    // Line 2: p-use hasDiscount
-        $total = $total - 5000;            // Line 3: c-use total & redefine total (u, d)
-    }
-    
-    return $total;                         // Line 5: c-use total (u)
-}
-```
+| Nama Variabel | Baris Deklarasi (Definition - d) | Baris Penggunaan (Use - u) | Jenis Penggunaan | Keterangan |
+| :--- | :---: | :---: | :---: | :--- |
+| **`$field`** | 23 | 25 | p-use | Memeriksa `$field->status !== 'active'` |
+| | 23 | 47 | c-use | Digunakan sebagai parameter `where('field_id', $field->id)` |
+| | 23 | 61 | c-use | Mengambil `$field->price_per_hour` untuk hitung tarif |
+| | 23 | 65 | c-use | Menyimpan `$field->id` ke record booking baru |
+| **`$start`** | 34 | 37 | p-use | Memeriksa `$start->minute !== 0` |
+| | 34 | 42 | p-use | Memeriksa `$start->hour < 7` |
+| | 34 | 60 | c-use | Menghitung durasi `$end->diffInHours($start)` |
+| **`$overlap`** | 47 | 56 | p-use | Memeriksa `if ($overlap)` |
+| **`$duration`** | 60 | 61 | c-use | Menghitung `$totalPrice = $duration * ...` |
+| **`$totalPrice`**| 61 | 67 | c-use | Menyimpan total harga ke database |
 
 ---
 
-## 3. Rencana Pengujian Data Flow (DU-Chains Testing)
+## 2. Analisis DU-Path & Uji Integritas Data
 
-Penguji menganalisis relasi `d` dan `u` untuk memastikan tidak ada anomali penggunaan data:
-1.  **Pengujian Rantai `total` (Line 1 to Line 3):** Memastikan jika `$hasDiscount` bernilai True, variabel `$total` yang didefinisikan pada Line 1 berhasil diolah di Line 3.
-2.  **Pengujian Rantai `total` (Line 1 to Line 5):** Memastikan jika `$hasDiscount` bernilai False, variabel `$total` langsung dikembalikan di Line 5 tanpa melalui modifikasi Line 3.
-
-### Anomali Data Flow yang Diperiksa:
-*   **UR Anomali (Undefined Read):** Menggunakan variabel sebelum di-define.
-*   **DU Anomali (Defined but not Used):** Variabel di-define namun nilainya ditimpa atau tidak pernah dibaca hingga program selesai.
+Penguji menguji aliran data dari titik deklarasi hingga penggunaan akhir:
+*   **DU-Path (`$field`, 23 ➔ 61):** Memastikan tarif per jam yang dibaca dari tabel `fields` pada baris 23 berhasil dikalikan dengan durasi pada baris 61 tanpa ada modifikasi nilai di tengah jalan.
+*   **DU-Path (`$totalPrice`, 61 ➔ 67):** Memastikan hasil perkalian tarif yang disimpan di `$totalPrice` benar-benar masuk ke database di kolom `total_price` saat pembuatan data booking.

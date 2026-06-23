@@ -1,27 +1,27 @@
 # Decision Table Testing (Tabel Keputusan)
 
-Pengujian Tabel Keputusan (*Decision Table Testing*) digunakan untuk memetakan kombinasi masukan logika biner (Benar/Salah) untuk memverifikasi keakuratan keputusan bisnis yang diambil oleh sistem booking lapangan.
+Dokumen ini mendokumentasikan hasil pengujian tabel keputusan (*Decision Table Testing*) untuk fitur **Pemesanan Lapangan (`store` method)** pada repositori [Website-BookingLapangan](https://github.com/JarJel/Website-BookingLapangan).
 
 ---
 
-## 1. Aturan Validasi Pemesanan Lapangan
+## 1. Tabel Keputusan Kombinasi Logika Bisnis
 
-| Kondisi / Masukan (Conditions) | Aturan 1 | Aturan 2 | Aturan 3 | Aturan 4 | Aturan 5 |
+| Kondisi / Masukan (Conditions) | Rule 1 | Rule 2 | Rule 3 | Rule 4 | Rule 5 |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Apakah Pengguna Sudah Login?** | Y | N | Y | Y | Y |
-| **Apakah Slot Jadwal Kosong/Tersedia?** | Y | - | N | Y | Y |
-| **Apakah Status Lapangan Aktif?** | Y | - | Y | N | Y |
-| **Apakah Pembayaran Berhasil Dikonfirmasi?**| Y | - | - | - | N |
-| **Hasil / Aksi Sistem (Actions)** | | | | | |
-| **Pemesanan Diterima & Disetujui (Approved)**| **X** | | | | |
-| **Pemesanan Ditolak & Tampil Pesan Error** | | **X** | **X** | **X** | |
-| **Pemesanan Ditangguhkan (Pending/Expired)**| | | | | **X** |
+| **C1: Tanggal Valid? ($\ge$ hari ini)** | YA | TIDAK | YA | YA | YA |
+| **C2: Menit Genap? (Menit = `00`)** | YA | YA/TIDAK | TIDAK | YA | YA |
+| **C3: Jam Operasional? (07:00 - 22:00)** | YA | YA/TIDAK | YA/TIDAK | TIDAK | YA |
+| **C4: Bebas Overlap? (Tidak bentrok)** | YA | YA/TIDAK | YA/TIDAK | YA/TIDAK | TIDAK |
+| **Tindakan / Aksi Sistem (Actions)** | | | | | |
+| **A1: Simpan ke DB (Status: pending)** | **X** | | | | |
+| **A2: Tampilkan Error Validasi Input** | | **X** | **X** | **X** | |
+| **A3: Tampilkan Error Konflik Jadwal** | | | | | **X** |
 
 ---
 
 ## 2. Keterangan Aturan (Rule Description)
-*   **Aturan 1 (Pemesanan Berhasil):** Pengguna login, lapangan aktif, slot waktu kosong, pembayaran valid. Hasil: Lapangan resmi dibooking (Status: Approved).
-*   **Aturan 2 (Akses Ditolak):** Pengguna belum login namun mencoba melakukan pemesanan. Hasil: Diarahkan ke halaman login dengan pesan kesalahan.
-*   **Aturan 3 (Bentrok Jadwal):** Lapangan aktif dan pengguna login, tetapi jam tersebut sudah dibooking orang lain. Hasil: Sistem memblokir formulir pemesanan dengan peringatan bentrok.
-*   **Aturan 4 (Lapangan Nonaktif):** Pengguna login dan slot kosong, namun lapangan dalam status perawatan (*Maintenance*). Hasil: Lapangan tidak dapat diklik atau dipesan.
-*   **Aturan 5 (Gagal Bayar):** Pengguna login, lapangan aktif, slot kosong, namun tidak ada konfirmasi pembayaran masuk dalam 1 jam. Hasil: Pemesanan kadaluwarsa (Expired).
+*   **Rule 1 (Pemesanan Sukses):** Seluruh input valid dan slot jadwal kosong. Sistem menyimpan data pemesanan ke DB dengan status `pending` dan mengalihkan pengguna ke halaman pembayaran.
+*   **Rule 2 (Tanggal Lampau):** Tanggal pemesanan yang dimasukkan lebih kecil dari hari ini. Sistem langsung memblokir dan menampilkan error validasi.
+*   **Rule 3 (Format Menit Salah):** Waktu mulai atau selesai tidak pas di menit `00` (contoh: `08:30`). Sistem menampilkan error kelipatan jam genap.
+*   **Rule 4 (Di Luar Jam Operasional):** Jam mulai < 07:00 atau jam selesai > 22:00. Sistem menolak pemesanan.
+*   **Rule 5 (Overlap/Bentrok Jadwal):** Lapangan dan tanggal sama, tetapi jam sewa beririsan dengan pemesanan lain yang berstatus `pending` atau `approved`. Sistem menampilkan error konflik jadwal.
